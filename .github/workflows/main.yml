@@ -45,7 +45,7 @@ jobs:
           deliverables: app.yaml
           version: v1
           credentials: ${{ secrets.GCP_SERVICE_CREDENTIALS }}
-          #project_id: 
+          project_id: sopra-fs25-bjelic-admir-server
 
       - name: Test
         run: curl "${{ steps.deploy.outputs.url }}"
