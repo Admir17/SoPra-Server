@@ -4,6 +4,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 
 import javax.persistence.*;
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -43,6 +44,9 @@ public class User implements Serializable {
 
   @Column(nullable = false)
   private LocalDateTime creationDate;
+
+  @Column(nullable = true)
+  private LocalDate birthDate;
 
   public Long getId() {
     return id;
@@ -98,5 +102,13 @@ public class User implements Serializable {
 
   public void setStatus(UserStatus status) {
     this.status = status;
+  }
+
+  public LocalDate getBirthDate() {
+    return birthDate;
+  }
+
+  public void setBirthDate(LocalDate birthDate) {
+    this.birthDate = birthDate;
   }
 }

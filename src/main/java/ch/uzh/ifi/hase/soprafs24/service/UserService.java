@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -108,6 +109,21 @@ public class UserService {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     user.setStatus(UserStatus.OFFLINE);
     userRepository.save(user);
+  }
+
+  public User getUserById(Long userId) {
+    return userRepository.findById(userId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+  }
+
+  public void updateUserBirthDate(Long userId, LocalDate birthDate) {
+    User user = getUserById(userId);
+    if (birthDate != null) {
+      user.setBirthDate(birthDate);
+      userRepository.save(user);
+    } else {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Birthdate cannot be null");
+    }
   }
 
   // helper method to check hashed passwords
