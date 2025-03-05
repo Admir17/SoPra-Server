@@ -73,14 +73,13 @@ public class UserControllerTest {
     // given
     User user = new User();
     user.setId(1L);
-    user.setName("Test User");
     user.setUsername("testUsername");
     user.setToken("1");
     user.setStatus(UserStatus.ONLINE);
 
     UserPostDTO userPostDTO = new UserPostDTO();
-    userPostDTO.setName("Test User");
     userPostDTO.setUsername("testUsername");
+    userPostDTO.setPassword("testPassword");
 
     given(userService.createUser(Mockito.any())).willReturn(user);
 
@@ -93,9 +92,9 @@ public class UserControllerTest {
     mockMvc.perform(postRequest)
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.id", is(user.getId().intValue())))
-        .andExpect(jsonPath("$.name", is(user.getName())))
         .andExpect(jsonPath("$.username", is(user.getUsername())))
-        .andExpect(jsonPath("$.status", is(user.getStatus().toString())));
+        .andExpect(jsonPath("$.status", is(user.getStatus().toString())))
+        .andExpect(jsonPath("$.token", is(user.getToken())));
   }
 
   /**

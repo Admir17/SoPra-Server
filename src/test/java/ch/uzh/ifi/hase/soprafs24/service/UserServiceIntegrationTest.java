@@ -42,6 +42,7 @@ public class UserServiceIntegrationTest {
     User testUser = new User();
     testUser.setName("testName");
     testUser.setUsername("testUsername");
+    testUser.setPassword("testPassword");
 
     // when
     User createdUser = userService.createUser(testUser);
@@ -51,7 +52,8 @@ public class UserServiceIntegrationTest {
     assertEquals(testUser.getName(), createdUser.getName());
     assertEquals(testUser.getUsername(), createdUser.getUsername());
     assertNotNull(createdUser.getToken());
-    assertEquals(UserStatus.OFFLINE, createdUser.getStatus());
+    assertEquals(UserStatus.ONLINE, createdUser.getStatus());
+    assertNotNull(createdUser.getCreationDate());
   }
 
   @Test
@@ -61,6 +63,8 @@ public class UserServiceIntegrationTest {
     User testUser = new User();
     testUser.setName("testName");
     testUser.setUsername("testUsername");
+    testUser.setPassword("testPassword");
+
     User createdUser = userService.createUser(testUser);
 
     // attempt to create second user with same username

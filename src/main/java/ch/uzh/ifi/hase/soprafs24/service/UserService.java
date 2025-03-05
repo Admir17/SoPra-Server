@@ -8,10 +8,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,10 +31,13 @@ public class UserService {
   private final Logger log = LoggerFactory.getLogger(UserService.class);
 
   private final UserRepository userRepository;
+  private final BCryptPasswordEncoder passwordEncoder;
 
   @Autowired
   public UserService(@Qualifier("userRepository") UserRepository userRepository) {
     this.userRepository = userRepository;
+    this.passwordEncoder = new BCryptPasswordEncoder();
+
   }
 
   public List<User> getUsers() {
@@ -40,9 +45,21 @@ public class UserService {
   }
 
   public User createUser(User newUser) {
+
+    // validating not empty
+    if (newUser.getUsername() == null || newUser.getUsername().trim().isEmpty() ||
+        newUser.getPassword() == null || newUser.getPassword().trim().isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username und Passwort dürfen nicht leer sein");
+    }
+
+    newUser.setName(newUser.getUsername());
     newUser.setToken(UUID.randomUUID().toString());
-    newUser.setStatus(UserStatus.OFFLINE);
+    newUser.setStatus(UserStatus.ONLINE);
+    newUser.setCreationDate(LocalDateTime.now());
+
     checkIfUserExists(newUser);
+
+    newUser.setPassword(passwordEncoder.encode(newUser.getPassword()));
     // saves the given entity but data is only persisted in the database once
     // flush() is called
     newUser = userRepository.save(newUser);
@@ -76,4 +93,26 @@ public class UserService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format(baseErrorMessage, "name", "is"));
     }
   }
+
+  public User loginUser(String username, String password) {
+    User user = userRepository.findByUsername(username);
+    if (user != null && checkPassword(password, user.getPassword())) {
+      user.setStatus(UserStatus.ONLINE);
+      return userRepository.save(user);
+    }
+    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+  }
+
+  public void logoutUser(Long userId) {
+    User user = userRepository.findById(userId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    user.setStatus(UserStatus.OFFLINE);
+    userRepository.save(user);
+  }
+
+  // helper method to check hashed passwords
+  private boolean checkPassword(String inputPassword, String storedPassword) {
+    return passwordEncoder.matches(inputPassword, storedPassword);
+  }
+
 }
