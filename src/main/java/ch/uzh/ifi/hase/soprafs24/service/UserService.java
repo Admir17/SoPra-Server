@@ -3,6 +3,8 @@ package ch.uzh.ifi.hase.soprafs24.service;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPutDTO;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,17 +84,12 @@ public class UserService {
    */
   private void checkIfUserExists(User userToBeCreated) {
     User userByUsername = userRepository.findByUsername(userToBeCreated.getUsername());
-    User userByName = userRepository.findByName(userToBeCreated.getName());
 
     String baseErrorMessage = "The %s provided %s not unique. Therefore, the user could not be created!";
-    if (userByUsername != null && userByName != null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+    if (userByUsername != null) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT,
           String.format(baseErrorMessage, "username and the name", "are"));
-    } else if (userByUsername != null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format(baseErrorMessage, "username", "is"));
-    } else if (userByName != null) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, String.format(baseErrorMessage, "name", "is"));
-    }
+    } 
   }
 
   public User loginUser(String username, String password) {
@@ -122,8 +119,23 @@ public class UserService {
       user.setBirthDate(birthDate);
       userRepository.save(user);
     } else {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Birthdate cannot be null");
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Birth date cannot be null");
     }
+  }
+
+  @Transactional
+  public void updateUser(Long userId, UserPutDTO userPutDTO) {
+    User user = getUserById(userId);
+
+    if (userPutDTO.getUsername() != null && !userPutDTO.getUsername().isEmpty()) {
+      user.setUsername(userPutDTO.getUsername());
+    }
+
+    if (userPutDTO.getBirthDate() != null) {
+      user.setBirthDate(userPutDTO.getBirthDate());
+    }
+
+    userRepository.save(user);
   }
 
   // helper method to check hashed passwords

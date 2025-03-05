@@ -80,7 +80,7 @@ public class UserController {
   @PutMapping("/users/{userId}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   @ResponseBody
-  public void updateUserBirthDate(@PathVariable Long userId, @RequestBody UserPutDTO userPutDTO) {
-    userService.updateUserBirthDate(userId, userPutDTO.getBirthDate());
+  public void updateUser(@PathVariable Long userId, @RequestBody UserPutDTO userPutDTO) {
+    userService.updateUser(userId, userPutDTO);
   }
 }
