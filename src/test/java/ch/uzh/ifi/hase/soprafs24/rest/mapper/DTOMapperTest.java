@@ -6,45 +6,81 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPostDTO;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.time.LocalDate;
 
-/**
- * DTOMapperTest
- * Tests if the mapping between the internal and the external/API representation
- * works.
- */
-public class DTOMapperTest {
-  @Test
-  public void testCreateUser_fromUserPostDTO_toUser_success() {
-    // create UserPostDTO
-    UserPostDTO userPostDTO = new UserPostDTO();
-    userPostDTO.setPassword("password");
-    userPostDTO.setUsername("username");
+import static org.junit.jupiter.api.Assertions.*;
 
-    // MAP -> Create user
-    User user = DTOMapper.INSTANCE.convertUserPostDTOtoEntity(userPostDTO);
+class DTOMapperTest {
 
-    // check content
-    assertEquals(userPostDTO.getPassword(), user.getPassword());
-    assertEquals(userPostDTO.getUsername(), user.getUsername());
+  private User createFullUser() {
+    User user = new User();
+    user.setId(1L);
+    user.setName("Test User");
+    user.setUsername("testuser");
+    user.setStatus(UserStatus.ONLINE);
+    user.setToken("security-token-123");
+    user.setCreationDate(LocalDate.of(2023, 1, 1));
+    user.setBirthDate(LocalDate.of(2000, 5, 15));
+    return user;
   }
 
   @Test
-  public void testGetUser_fromUser_toUserGetDTO_success() {
-    // create User
-    User user = new User();
-    user.setName("Firstname Lastname");
-    user.setUsername("firstname@lastname");
-    user.setStatus(UserStatus.OFFLINE);
-    user.setToken("1");
+  void convertUserPostDTOtoEntity_validInput_MapsAllFields() {
+    // Arrange
+    UserPostDTO dto = new UserPostDTO();
+    dto.setUsername("newuser");
+    dto.setPassword("securePass123");
 
-    // MAP -> Create UserGetDTO
-    UserGetDTO userGetDTO = DTOMapper.INSTANCE.convertEntityToUserGetDTO(user);
+    // Act
+    User result = DTOMapper.INSTANCE.convertUserPostDTOtoEntity(dto);
 
-    // check content
-    assertEquals(user.getId(), userGetDTO.getId());
-    assertEquals(user.getName(), userGetDTO.getName());
-    assertEquals(user.getUsername(), userGetDTO.getUsername());
-    assertEquals(user.getStatus(), userGetDTO.getStatus());
+    // Assert
+    assertEquals("newuser", result.getUsername());
+    assertEquals("securePass123", result.getPassword());
+  }
+
+  @Test
+  void convertEntityToUserGetDTO_fullUser_MapsAllFieldsWithCorrectFormat() {
+    // Arrange
+    User user = createFullUser();
+
+    // Act
+    UserGetDTO result = DTOMapper.INSTANCE.convertEntityToUserGetDTO(user);
+
+    // Assert
+    assertAll(
+        () -> assertEquals(1L, result.getId()),
+        () -> assertEquals("Test User", result.getName()),
+        () -> assertEquals("testuser", result.getUsername()),
+        () -> assertEquals(UserStatus.ONLINE, result.getStatus()),
+        () -> assertEquals("security-token-123", result.getToken()),
+        () -> assertEquals("2023-01-01", result.getCreationDate()),
+        () -> assertEquals("2000-05-15", result.getBirthDate()));
+  }
+
+  @Test
+  void convertEntityToUserGetDTO_nullBirthDate_MapsToNull() {
+    // Arrange
+    User user = createFullUser();
+    user.setBirthDate(null);
+
+    // Act
+    UserGetDTO result = DTOMapper.INSTANCE.convertEntityToUserGetDTO(user);
+
+    // Assert
+    assertNull(result.getBirthDate());
+  }
+
+  @Test
+  void convertUserPostDTOtoEntity_nullValues_MapsToNull() {
+    // Arrange
+    UserPostDTO dto = new UserPostDTO();
+
+    // Act
+    User result = DTOMapper.INSTANCE.convertUserPostDTOtoEntity(dto);
+
+    // Assert
+    assertNull(result.getUsername());
+    assertNull(result.getPassword());
   }
 }

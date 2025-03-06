@@ -7,13 +7,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.time.LocalDate;
 
-public class UserServiceTest {
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+class UserServiceTest {
 
   @Mock
   private UserRepository userRepository;
@@ -24,53 +28,76 @@ public class UserServiceTest {
   private User testUser;
 
   @BeforeEach
-  public void setup() {
+  void setup() {
     MockitoAnnotations.openMocks(this);
 
-    // given
     testUser = new User();
     testUser.setId(1L);
-    testUser.setName("testName");
-    testUser.setUsername("testUsername");
+    testUser.setName("Test User");
+    testUser.setUsername("testuser");
     testUser.setPassword("testPassword");
 
-    // when -> any object is being save in the userRepository -> return the dummy
-    // testUser
-    Mockito.when(userRepository.save(Mockito.any())).thenReturn(testUser);
+    when(userRepository.save(any())).thenReturn(testUser);
   }
 
   @Test
-  public void createUser_validInputs_success() {
-
-    // given
-    testUser.setPassword("testPassword");
-
-    // when -> any object is being save in the userRepository -> return the dummy
-    // testUser
+  void createUser_validInput_createsUserWithHashedPassword() {
+    // Act
     User createdUser = userService.createUser(testUser);
 
-    // then
-    Mockito.verify(userRepository, Mockito.times(1)).save(Mockito.any());
+    // Assert
+    verify(userRepository, times(1)).save(any());
+    verify(userRepository, times(1)).flush();
 
-    assertEquals(testUser.getId(), createdUser.getId());
-    assertEquals(testUser.getName(), createdUser.getName());
-    assertEquals(testUser.getUsername(), createdUser.getUsername());
-    assertNotNull(createdUser.getToken());
-    assertEquals(UserStatus.ONLINE, createdUser.getStatus());
-    assertNotNull(createdUser.getCreationDate());
+    assertAll(
+        () -> assertEquals(testUser.getId(), createdUser.getId()),
+        () -> assertEquals("testuser", createdUser.getUsername()),
+        () -> assertEquals(UserStatus.ONLINE, createdUser.getStatus()),
+        () -> assertNotNull(createdUser.getToken()),
+        () -> assertEquals(LocalDate.now(), createdUser.getCreationDate()),
+        () -> assertTrue(new BCryptPasswordEncoder().matches("testPassword", createdUser.getPassword())));
   }
 
   @Test
-  public void createUser_duplicateInputs_throwsException() {
-    // given -> a first user has already been created
-    userService.createUser(testUser);
+  void createUser_duplicateUsername_throwsConflictException() {
+    // Arrange
+    when(userRepository.findByUsername("testuser")).thenReturn(testUser);
 
-    // when -> setup additional mocks for UserRepository
-    Mockito.when(userRepository.findByUsername(Mockito.any())).thenReturn(testUser);
+    // Act & Assert
+    assertThrows(ResponseStatusException.class,
+        () -> userService.createUser(testUser),
+        "Expected conflict exception for duplicate username");
 
-    // then -> attempt to create second user with same user -> check that an error
-    // is thrown
-    assertThrows(ResponseStatusException.class, () -> userService.createUser(testUser));
+    verify(userRepository, never()).save(testUser);
   }
 
+  @Test
+  void createUser_emptyPassword_throwsBadRequest() {
+    // Arrange
+    testUser.setPassword("");
+
+    // Act & Assert
+    assertThrows(ResponseStatusException.class,
+        () -> userService.createUser(testUser),
+        "Should reject empty password");
+  }
+
+  @Test
+  void createUser_autoGeneratesToken() {
+    // Act
+    User createdUser = userService.createUser(testUser);
+
+    // Assert
+    assertNotNull(createdUser.getToken());
+    assertEquals(36, createdUser.getToken().length()); // UUID length check
+  }
+
+  @Test
+  void createUser_setsCorrectInitialStatus() {
+    // Act
+    User createdUser = userService.createUser(testUser);
+
+    // Assert
+    assertEquals(UserStatus.ONLINE, createdUser.getStatus());
+  }
 }

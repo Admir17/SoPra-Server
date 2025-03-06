@@ -17,16 +17,22 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 /**
  * UserControllerTest
@@ -109,8 +115,99 @@ public class UserControllerTest {
     try {
       return new ObjectMapper().writeValueAsString(object);
     } catch (JsonProcessingException e) {
-      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-          String.format("The request body could not be created.%s", e.toString()));
+      throw new RuntimeException("Failed to serialize object", e);
     }
   }
+
+  @Test
+  public void createUser_duplicateUsername_throwsException() throws Exception {
+    // Given
+    UserPostDTO userPostDTO = new UserPostDTO();
+    userPostDTO.setUsername("existingUser");
+    userPostDTO.setPassword("password123");
+
+    given(userService.createUser(any()))
+        .willThrow(new ResponseStatusException(HttpStatus.CONFLICT, "Username exists"));
+
+    // When/Then
+    mockMvc.perform(post("/users")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(asJsonString(userPostDTO)))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
+  public void createUser_emptyPassword_throwsBadRequest() throws Exception {
+    // Given
+    UserPostDTO userPostDTO = new UserPostDTO();
+    userPostDTO.setUsername("validUser");
+    userPostDTO.setPassword("");
+
+    given(userService.createUser(any()))
+        .willThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username and password must not be empty"));
+
+    // When/Then
+    mockMvc.perform(post("/users")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(asJsonString(userPostDTO)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  public void createUser_setsCreationDate() throws Exception {
+    // Given
+    User user = new User();
+    user.setId(1L);
+    user.setUsername("testUser");
+    user.setCreationDate(LocalDate.now());
+
+    given(userService.createUser(any())).willReturn(user);
+
+    // When/Then
+    mockMvc.perform(post("/users")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(asJsonString(new UserPostDTO())))
+        .andExpect(jsonPath("$.creationDate").exists());
+  }
+
+  @Test
+  void getUser_validId_returnsUser() throws Exception {
+    // Arrange
+    User user = new User();
+    user.setId(1L);
+    user.setUsername("testuser");
+    when(userService.getUserById(1L)).thenReturn(user);
+
+    // Act & Assert
+    mockMvc.perform(get("/users/1")
+        .accept(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(1))
+        .andExpect(jsonPath("$.username").value("testuser"));
+  }
+
+  @Test
+  void getUser_invalidId_returns404() throws Exception {
+    // Arrange
+    when(userService.getUserById(999L))
+        .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+    // Act & Assert
+    mockMvc.perform(get("/users/999"))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void updateUser_nonExistingUser_returns404() throws Exception {
+    // Arrange
+    doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND))
+        .when(userService).updateUser(eq(999L), any());
+
+    // Act & Assert
+    mockMvc.perform(put("/users/999")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{}"))
+        .andExpect(status().isNotFound());
+  }
+
 }

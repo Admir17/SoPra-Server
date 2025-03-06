@@ -1,28 +1,22 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
-import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Test class for the UserResource REST resource.
- *
- * @see UserService
- */
 @WebAppConfiguration
 @SpringBootTest
-public class UserServiceIntegrationTest {
+class UserServiceIntegrationTest {
 
-  @Qualifier("userRepository")
   @Autowired
   private UserRepository userRepository;
 
@@ -30,51 +24,69 @@ public class UserServiceIntegrationTest {
   private UserService userService;
 
   @BeforeEach
-  public void setup() {
+  void setup() {
     userRepository.deleteAll();
   }
 
-  @Test
-  public void createUser_validInputs_success() {
-    // given
-    assertNull(userRepository.findByUsername("testUsername"));
-
-    User testUser = new User();
-    testUser.setName("testName");
-    testUser.setUsername("testUsername");
-    testUser.setPassword("testPassword");
-
-    // when
-    User createdUser = userService.createUser(testUser);
-
-    // then
-    assertEquals(testUser.getId(), createdUser.getId());
-    assertEquals(testUser.getName(), createdUser.getName());
-    assertEquals(testUser.getUsername(), createdUser.getUsername());
-    assertNotNull(createdUser.getToken());
-    assertEquals(UserStatus.ONLINE, createdUser.getStatus());
-    assertNotNull(createdUser.getCreationDate());
+  private User createValidUser() {
+    User user = new User();
+    user.setName("Test User");
+    user.setUsername("testuser");
+    user.setPassword("securePassword123");
+    return user;
   }
 
   @Test
-  public void createUser_duplicateUsername_throwsException() {
-    assertNull(userRepository.findByUsername("testUsername"));
+  void createUser_duplicateUsername_throwsConflictException() {
+    // Arrange
+    User firstUser = createValidUser();
+    userService.createUser(firstUser);
 
-    User testUser = new User();
-    testUser.setName("testName");
-    testUser.setUsername("testUsername");
-    testUser.setPassword("testPassword");
+    User secondUser = createValidUser();
+    secondUser.setUsername("testuser");
+    secondUser.setPassword("differentPassword");
 
-    User createdUser = userService.createUser(testUser);
+    // Act & Assert
+    assertThrows(ResponseStatusException.class,
+        () -> userService.createUser(secondUser),
+        "Should throw conflict for duplicate username");
+  }
 
-    // attempt to create second user with same username
-    User testUser2 = new User();
+  @Test
+  void createUser_emptyPassword_throwsBadRequest() {
+    // Arrange
+    User invalidUser = createValidUser();
+    invalidUser.setPassword("");
 
-    // change the name but forget about the username
-    testUser2.setName("testName2");
-    testUser2.setUsername("testUsername");
+    // Act & Assert
+    assertThrows(ResponseStatusException.class,
+        () -> userService.createUser(invalidUser),
+        "Should reject empty password");
+  }
 
-    // check that an error is thrown
-    assertThrows(ResponseStatusException.class, () -> userService.createUser(testUser2));
+  @Test
+  void createUser_passwordIsHashed() {
+    // Arrange
+    User newUser = createValidUser();
+    String rawPassword = newUser.getPassword();
+
+    // Act
+    User createdUser = userService.createUser(newUser);
+
+    // Assert
+    assertNotEquals(rawPassword, createdUser.getPassword());
+    assertTrue(createdUser.getPassword().startsWith("$2a$10$"));
+  }
+
+  @Test
+  void createUser_creationDateIsToday() {
+    // Arrange
+    User newUser = createValidUser();
+
+    // Act
+    User createdUser = userService.createUser(newUser);
+
+    // Assert
+    assertEquals(LocalDate.now(), createdUser.getCreationDate());
   }
 }
