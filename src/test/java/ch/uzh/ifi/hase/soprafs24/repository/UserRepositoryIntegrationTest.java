@@ -10,7 +10,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @DataJpaTest
 public class UserRepositoryIntegrationTest {
@@ -29,7 +29,7 @@ public class UserRepositoryIntegrationTest {
     user.setUsername("firstname@lastname");
     user.setStatus(UserStatus.OFFLINE);
     user.setToken("1");
-    user.setCreationDate(LocalDateTime.now());
+    user.setCreationDate(LocalDate.now());
     user.setPassword("testPassword");
 
     entityManager.persist(user);

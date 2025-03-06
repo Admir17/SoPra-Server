@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -58,7 +57,7 @@ public class UserService {
     newUser.setName(newUser.getUsername());
     newUser.setToken(UUID.randomUUID().toString());
     newUser.setStatus(UserStatus.ONLINE);
-    newUser.setCreationDate(LocalDateTime.now());
+    newUser.setCreationDate(LocalDate.now());
 
     checkIfUserExists(newUser);
 
